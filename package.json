@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "type": "module",
   "description": "TypeScript MCP server for Odoo JSON-2 API with HMAC webhooks and Redis caching",
+  "main": "dist/index.js",
   "scripts": {
     "start": "node dist/index.js",
     "dev": "MOCK_ODOO=true tsx src/index.ts",
@@ -20,6 +21,7 @@
     "dotenv": "^16.4.5",
     "express": "^5.2.1",
     "ioredis": "^5.4.1",
+    "typescript": "^5.6.2",
     "zod": "^3.23.8"
   },
   "devDependencies": {
@@ -27,7 +29,6 @@
     "@types/node": "^22.5.0",
     "@vitest/coverage-v8": "^4.1.9",
     "tsx": "^4.19.0",
-    "typescript": "^5.6.2",
     "vitest": "^4.1.9"
   }
 }
