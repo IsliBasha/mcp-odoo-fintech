@@ -26,7 +26,6 @@
     "@types/express": "^5.0.6",
     "@types/node": "^22.5.0",
     "@vitest/coverage-v8": "^4.1.9",
-    "playwright": "^1.61.1",
     "tsx": "^4.19.0",
     "typescript": "^5.6.2",
     "vitest": "^4.1.9"
