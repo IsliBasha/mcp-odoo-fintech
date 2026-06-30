@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>MCP Odoo Inspector</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #080C0E;
+    --surface:   #0D1419;
+    --surface2:  #111A22;
+    --border:    #1C2B3A;
+    --border2:   #243443;
+    --accent:    #00D4A0;
+    --accent-dim:#00A880;
+    --accent-glow: rgba(0,212,160,0.12);
+    --text:      #C9D1D9;
+    --text2:     #6E7681;
+    --text3:     #3D4F5C;
+    --success:   #22C55E;
+    --warning:   #F59E0B;
+    --error:     #EF4444;
+    --mono:      'JetBrains Mono', monospace;
+    --sans:      'Inter', sans-serif;
+  }
+
+  html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 14px; overflow: hidden; }
+
+  .shell {
+    display: grid;
+    grid-template-rows: 44px 1fr 32px;
+    height: 100vh;
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    gap: 16px;
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    letter-spacing: 0.02em;
+  }
+
+  .logo-icon {
+    width: 20px;
+    height: 20px;
+    background: var(--accent);
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .logo-icon svg { width: 12px; height: 12px; fill: #000; }
+
+  .header-spacer { flex: 1; }
+
+  .status-pill {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--border2);
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text2);
+    background: var(--surface2);
+  }
+
+  .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--text3);
+    transition: background 0.3s;
+  }
+
+  .dot.connected { background: var(--success); box-shadow: 0 0 6px var(--success); }
+  .dot.mock      { background: var(--warning); box-shadow: 0 0 6px var(--warning); }
+  .dot.error     { background: var(--error); }
+
+  .version-tag {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text3);
+    letter-spacing: 0.04em;
+  }
+
+  .main {
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    overflow: hidden;
+  }
+
+  .sidebar {
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+    padding: 12px 0;
+    background: var(--surface);
+  }
+
+  .sidebar-section {
+    padding: 6px 14px 2px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    color: var(--text3);
+    text-transform: uppercase;
+  }
+
+  .tool-btn {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    width: 100%;
+    padding: 10px 14px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    text-align: left;
+    border-left: 2px solid transparent;
+    transition: background 0.12s, border-color 0.12s;
+  }
+
+  .tool-btn:hover { background: var(--surface2); border-left-color: var(--border2); }
+
+  .tool-btn.active {
+    background: var(--accent-glow);
+    border-left-color: var(--accent);
+  }
+
+  .tool-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 12px;
+    transition: border-color 0.12s, background 0.12s;
+  }
+
+  .tool-btn.active .tool-icon { background: rgba(0,212,160,0.15); border-color: var(--accent-dim); }
+
+  .tool-info { flex: 1; min-width: 0; }
+
+  .tool-name {
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text);
+    line-height: 1.3;
+    word-break: break-word;
+  }
+
+  .tool-btn.active .tool-name { color: var(--accent); }
+
+  .tool-desc {
+    font-size: 10.5px;
+    color: var(--text2);
+    line-height: 1.4;
+    margin-top: 2px;
+    word-break: break-word;
+  }
+
+  .sidebar-divider { height: 1px; background: var(--border); margin: 8px 0; }
+
+  .history-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    cursor: pointer;
+    transition: background 0.1s;
+  }
+
+  .history-item:hover { background: var(--surface2); }
+
+  .history-status { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+  .history-status.ok  { background: var(--success); }
+  .history-status.err { background: var(--error); }
+
+  .history-name {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text2);
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .history-time { font-family: var(--mono); font-size: 10px; color: var(--text3); flex-shrink: 0; }
+
+  .workspace { display: grid; grid-template-rows: 1fr 1fr; overflow: hidden; }
+
+  .pane { display: flex; flex-direction: column; overflow: hidden; border-bottom: 1px solid var(--border); }
+  .pane:last-child { border-bottom: none; }
+
+  .pane-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 20px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    flex-shrink: 0;
+  }
+
+  .pane-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text2);
+  }
+
+  .pane-meta { font-family: var(--mono); font-size: 11px; color: var(--text3); }
+  .pane-spacer { flex: 1; }
+
+  .copy-btn {
+    padding: 3px 10px;
+    border-radius: 4px;
+    border: 1px solid var(--border2);
+    background: transparent;
+    color: var(--text2);
+    font-size: 11px;
+    cursor: pointer;
+    font-family: var(--mono);
+    transition: border-color 0.1s, color 0.1s;
+  }
+
+  .copy-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  .pane-body { flex: 1; overflow-y: auto; padding: 16px 20px; background: var(--bg); }
+
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    gap: 12px;
+    color: var(--text3);
+  }
+
+  .empty-icon { font-size: 32px; opacity: 0.5; }
+  .empty-text { font-size: 13px; }
+  .empty-hint { font-family: var(--mono); font-size: 11px; }
+
+  .form-grid { display: flex; flex-direction: column; gap: 14px; max-width: 560px; }
+
+  .field-row { display: flex; flex-direction: column; gap: 5px; }
+
+  .field-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text2);
+    font-weight: 500;
+  }
+
+  .field-type {
+    font-size: 10px;
+    color: var(--text3);
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 1px 5px;
+  }
+
+  .field-optional { font-size: 10px; color: var(--text3); }
+
+  input[type="text"], input[type="number"], select {
+    width: 100%;
+    padding: 8px 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.15s;
+    -webkit-appearance: none;
+  }
+
+  input[type="text"]:focus, input[type="number"]:focus, select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px var(--accent-glow);
+  }
+
+  select option { background: var(--surface2); }
+
+  .product-lines { display: flex; flex-direction: column; gap: 8px; }
+
+  .line-card {
+    display: grid;
+    grid-template-columns: 1fr 80px 100px 32px;
+    gap: 6px;
+    align-items: center;
+    padding: 8px 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+  }
+
+  .line-card input { padding: 6px 8px; font-size: 12px; }
+
+  .remove-line {
+    width: 28px;
+    height: 28px;
+    border: 1px solid var(--border);
+    background: transparent;
+    border-radius: 4px;
+    color: var(--text3);
+    font-size: 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: border-color 0.1s, color 0.1s;
+    line-height: 1;
+  }
+
+  .remove-line:hover { border-color: var(--error); color: var(--error); }
+
+  .add-line-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 12px;
+    background: transparent;
+    border: 1px dashed var(--border2);
+    border-radius: 6px;
+    color: var(--text2);
+    font-size: 12px;
+    cursor: pointer;
+    transition: border-color 0.1s, color 0.1s;
+    font-family: var(--sans);
+  }
+
+  .add-line-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  .exec-row { display: flex; align-items: center; gap: 12px; margin-top: 4px; }
+
+  .exec-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 20px;
+    background: var(--accent);
+    border: none;
+    border-radius: 6px;
+    color: #000;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: var(--sans);
+    transition: background 0.15s, transform 0.1s;
+  }
+
+  .exec-btn:hover { background: #00E8AF; }
+  .exec-btn:active { transform: scale(0.98); }
+  .exec-btn:disabled { background: var(--border); color: var(--text3); cursor: not-allowed; transform: none; }
+
+  .exec-btn .spinner {
+    display: none;
+    width: 14px;
+    height: 14px;
+    border: 2px solid rgba(0,0,0,0.3);
+    border-top-color: #000;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+  }
+
+  .exec-btn.loading .spinner { display: block; }
+  .exec-btn.loading .exec-label { opacity: 0.7; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .kbd-hint { font-family: var(--mono); font-size: 11px; color: var(--text3); }
+
+  .response-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--text3);
+    font-family: var(--mono);
+    font-size: 12px;
+  }
+
+  .json-viewer {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    line-height: 1.65;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+
+  .json-viewer .jk  { color: #79C0FF; }
+  .json-viewer .js  { color: #A5D6FF; }
+  .json-viewer .jn  { color: #F78166; }
+  .json-viewer .jb  { color: var(--accent); }
+  .json-viewer .jnl { color: var(--text2); }
+
+  .response-error {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    color: var(--error);
+    line-height: 1.6;
+    padding: 4px 0;
+    white-space: pre-wrap;
+  }
+
+  .status-badge { padding: 2px 8px; border-radius: 4px; font-family: var(--mono); font-size: 11px; font-weight: 600; }
+  .status-badge.ok  { background: rgba(34,197,94,0.12); color: var(--success); }
+  .status-badge.err { background: rgba(239,68,68,0.12); color: var(--error); }
+
+  .timing { font-family: var(--mono); font-size: 11px; color: var(--text2); }
+
+  footer {
+    display: flex;
+    align-items: center;
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+    height: 32px;
+    overflow: hidden;
+  }
+
+  .footer-cell {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 14px;
+    height: 100%;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text2);
+    border-right: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  .footer-cell:first-child { background: var(--accent); color: #000; font-weight: 600; }
+
+  .footer-dot { width: 5px; height: 5px; border-radius: 50%; }
+  .footer-dot.ok   { background: var(--success); }
+  .footer-dot.warn { background: var(--warning); }
+  .footer-dot.idle { background: var(--text3); }
+
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text3); }
+</style>
+</head>
+<body>
+<div class="shell">
+  <header>
+    <div class="logo">
+      <div class="logo-icon">
+        <svg viewBox="0 0 12 12"><path d="M6 1L11 4V8L6 11L1 8V4L6 1Z"/></svg>
+      </div>
+      MCP Odoo Fintech
+    </div>
+    <div class="header-spacer"></div>
+    <div class="status-pill">
+      <div class="dot" id="status-dot"></div>
+      <span id="status-text">checking…</span>
+    </div>
+    <span class="version-tag">v0.1.0</span>
+  </header>
+
+  <div class="main">
+    <aside class="sidebar">
+      <div class="sidebar-section">Tools</div>
+      <div id="tool-list"></div>
+      <div class="sidebar-divider"></div>
+      <div class="sidebar-section">History</div>
+      <div id="history-list"></div>
+    </aside>
+
+    <div class="workspace">
+      <div class="pane">
+        <div class="pane-header">
+          <span class="pane-label">Request</span>
+          <span class="pane-meta" id="active-tool-label">— select a tool</span>
+          <div class="pane-spacer"></div>
+        </div>
+        <div class="pane-body" id="request-body">
+          <div class="empty-state">
+            <div class="empty-icon">⬡</div>
+            <div class="empty-text">Select a tool from the sidebar</div>
+            <div class="empty-hint">Ctrl+Enter to execute</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="pane">
+        <div class="pane-header">
+          <span class="pane-label">Response</span>
+          <span id="resp-status"></span>
+          <span class="pane-meta timing" id="resp-timing"></span>
+          <div class="pane-spacer"></div>
+          <button class="copy-btn" id="copy-btn" style="display:none" onclick="copyResponse()">Copy</button>
+        </div>
+        <div class="pane-body" id="response-body">
+          <div class="response-empty">awaiting execution…</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <div class="footer-cell">MCP</div>
+    <div class="footer-cell">
+      <div class="footer-dot idle" id="footer-dot"></div>
+      <span id="footer-mode">Mock Odoo</span>
+    </div>
+    <div class="footer-cell" id="footer-tool">No tool selected</div>
+    <div class="footer-cell" id="footer-requests">0 requests</div>
+  </footer>
+</div>
+
+<script>
+const state = { activeTool: null, tools: [], history: [], lastResponse: null, requestCount: 0 }
+
+const TOOL_DEFAULTS = {
+  search_invoices:      { limit: '10' },
+  get_customer_balance: { partner_id: '1' },
+  create_sales_order:   { partner_id: '1', _lines: [{ product_id: '10', qty: '2', price_unit: '150' }] },
+  search_customers:     { query: 'Acme', limit: '10' },
+}
+
+const TOOL_ICONS = {
+  search_invoices:      '🧾',
+  get_customer_balance: '💰',
+  create_sales_order:   '📦',
+  search_customers:     '🔍',
+}
+
+function highlight(json) {
+  return json.replace(/("(\\u[a-fA-F0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, (m) => {
+    let cls = 'jn'
+    if (/^"/.test(m)) cls = /:$/.test(m) ? 'jk' : 'js'
+    else if (/true|false/.test(m)) cls = 'jb'
+    else if (/null/.test(m)) cls = 'jnl'
+    return `<span class="${cls}">${m}</span>`
+  })
+}
+
+function renderToolList() {
+  const container = document.getElementById('tool-list')
+  container.innerHTML = ''
+  state.tools.forEach((tool) => {
+    const btn = document.createElement('button')
+    btn.className = 'tool-btn' + (state.activeTool?.name === tool.name ? ' active' : '')
+    btn.dataset.name = tool.name
+    btn.innerHTML = `
+      <div class="tool-icon">${TOOL_ICONS[tool.name] || '⚙'}</div>
+      <div class="tool-info">
+        <div class="tool-name">${tool.name}</div>
+        <div class="tool-desc">${tool.description}</div>
+      </div>`
+    btn.addEventListener('click', () => selectTool(tool))
+    container.appendChild(btn)
+  })
+}
+
+function selectTool(tool) {
+  state.activeTool = tool
+  document.querySelectorAll('.tool-btn').forEach((b) =>
+    b.classList.toggle('active', b.dataset.name === tool.name)
+  )
+  document.getElementById('active-tool-label').textContent = tool.name
+  document.getElementById('footer-tool').textContent = tool.name
+  renderRequestForm(tool)
+}
+
+function renderRequestForm(tool) {
+  const body = document.getElementById('request-body')
+  const defs = TOOL_DEFAULTS[tool.name] || {}
+
+  if (tool.name === 'create_sales_order') {
+    body.innerHTML = buildSalesForm(defs)
+  } else if (tool.name === 'search_invoices') {
+    body.innerHTML = `<div class="form-grid">
+      <div class="field-row"><label class="field-label">customer_name <span class="field-type">string</span><span class="field-optional">optional</span></label>
+        <input type="text" id="f-customer_name" placeholder="e.g. Acme" /></div>
+      <div class="field-row"><label class="field-label">state <span class="field-type">enum</span><span class="field-optional">optional</span></label>
+        <select id="f-state"><option value="">— any —</option><option value="draft">draft</option><option value="posted">posted</option><option value="paid">paid</option></select></div>
+      <div class="field-row"><label class="field-label">limit <span class="field-type">number</span></label>
+        <input type="number" id="f-limit" value="${defs.limit || 10}" min="1" max="100" /></div>
+      <div class="exec-row">
+        <button class="exec-btn" onclick="execute()"><div class="spinner"></div><span class="exec-label">▶ Execute</span></button>
+        <span class="kbd-hint">or Ctrl+Enter</span>
+      </div></div>`
+  } else if (tool.name === 'get_customer_balance') {
+    body.innerHTML = `<div class="form-grid">
+      <div class="field-row"><label class="field-label">partner_id <span class="field-type">integer</span></label>
+        <input type="number" id="f-partner_id" value="${defs.partner_id || 1}" min="1" /></div>
+      <div class="exec-row">
+        <button class="exec-btn" onclick="execute()"><div class="spinner"></div><span class="exec-label">▶ Execute</span></button>
+        <span class="kbd-hint">or Ctrl+Enter</span>
+      </div></div>`
+  } else if (tool.name === 'search_customers') {
+    body.innerHTML = `<div class="form-grid">
+      <div class="field-row"><label class="field-label">query <span class="field-type">string</span></label>
+        <input type="text" id="f-query" value="${defs.query || ''}" placeholder="Customer name…" /></div>
+      <div class="field-row"><label class="field-label">limit <span class="field-type">number</span></label>
+        <input type="number" id="f-limit" value="${defs.limit || 10}" min="1" max="50" /></div>
+      <div class="exec-row">
+        <button class="exec-btn" onclick="execute()"><div class="spinner"></div><span class="exec-label">▶ Execute</span></button>
+        <span class="kbd-hint">or Ctrl+Enter</span>
+      </div></div>`
+  }
+}
+
+function buildSalesForm(defs) {
+  const lines = defs._lines || [{ product_id: '', qty: '1', price_unit: '' }]
+  const linesHtml = lines.map((l) => `
+    <div class="line-card">
+      <input type="number" class="line-product" placeholder="product_id" value="${l.product_id || ''}" min="1" />
+      <input type="number" class="line-qty" placeholder="qty" value="${l.qty || '1'}" min="0.01" step="0.01" />
+      <input type="number" class="line-price" placeholder="price_unit" value="${l.price_unit || ''}" min="0.01" step="0.01" />
+      <button class="remove-line" onclick="removeLine(this)" title="Remove">×</button>
+    </div>`).join('')
+  return `<div class="form-grid">
+    <div class="field-row"><label class="field-label">partner_id <span class="field-type">integer</span></label>
+      <input type="number" id="f-partner_id" value="${defs.partner_id || 1}" min="1" /></div>
+    <div class="field-row"><label class="field-label">product_lines <span class="field-type">array</span></label>
+      <div class="product-lines" id="lines-container">${linesHtml}</div>
+      <button class="add-line-btn" onclick="addLine()">+ Add product line</button></div>
+    <div class="exec-row">
+      <button class="exec-btn" onclick="execute()"><div class="spinner"></div><span class="exec-label">▶ Execute</span></button>
+      <span class="kbd-hint">or Ctrl+Enter</span>
+    </div></div>`
+}
+
+function addLine() {
+  const container = document.getElementById('lines-container')
+  const div = document.createElement('div')
+  div.className = 'line-card'
+  div.innerHTML = `
+    <input type="number" class="line-product" placeholder="product_id" min="1" />
+    <input type="number" class="line-qty" placeholder="qty" value="1" min="0.01" step="0.01" />
+    <input type="number" class="line-price" placeholder="price_unit" min="0.01" step="0.01" />
+    <button class="remove-line" onclick="removeLine(this)" title="Remove">×</button>`
+  container.appendChild(div)
+}
+
+function removeLine(btn) {
+  const container = document.getElementById('lines-container')
+  if (container.children.length > 1) btn.closest('.line-card').remove()
+}
+
+function buildPayload() {
+  const name = state.activeTool?.name
+  if (!name) return null
+
+  if (name === 'search_invoices') {
+    const payload = { limit: parseInt(document.getElementById('f-limit').value) || 10 }
+    const cn = document.getElementById('f-customer_name').value.trim()
+    const st = document.getElementById('f-state').value
+    if (cn) payload.customer_name = cn
+    if (st) payload.state = st
+    return payload
+  }
+  if (name === 'get_customer_balance') {
+    return { partner_id: parseInt(document.getElementById('f-partner_id').value) }
+  }
+  if (name === 'search_customers') {
+    return { query: document.getElementById('f-query').value.trim(), limit: parseInt(document.getElementById('f-limit').value) || 10 }
+  }
+  if (name === 'create_sales_order') {
+    const partner_id = parseInt(document.getElementById('f-partner_id').value)
+    const cards = document.querySelectorAll('#lines-container .line-card')
+    const product_lines = Array.from(cards).map((card) => ({
+      product_id: parseInt(card.querySelector('.line-product').value),
+      qty: parseFloat(card.querySelector('.line-qty').value),
+      price_unit: parseFloat(card.querySelector('.line-price').value),
+    }))
+    return { partner_id, product_lines }
+  }
+  return {}
+}
+
+async function execute() {
+  const tool = state.activeTool
+  if (!tool) return
+  const payload = buildPayload()
+  const btn = document.querySelector('.exec-btn')
+  btn.classList.add('loading')
+  btn.disabled = true
+
+  try {
+    const res = await fetch(`/api/tools/${tool.name}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+    const json = await res.json()
+    state.lastResponse = json
+    state.requestCount++
+    document.getElementById('footer-requests').textContent = `${state.requestCount} request${state.requestCount === 1 ? '' : 's'}`
+
+    if (json.error) {
+      renderError(json.error, json.executionTime, res.status)
+      addHistory(tool.name, false, json.executionTime)
+    } else {
+      renderSuccess(json.data, json.executionTime)
+      addHistory(tool.name, true, json.executionTime)
+    }
+  } catch (e) {
+    renderError(e.message, 0, 0)
+    addHistory(tool.name, false, 0)
+  } finally {
+    btn.classList.remove('loading')
+    btn.disabled = false
+  }
+}
+
+function renderSuccess(data, ms) {
+  const formatted = JSON.stringify(data, null, 2)
+  document.getElementById('response-body').innerHTML = `<div class="json-viewer">${highlight(formatted)}</div>`
+  document.getElementById('resp-status').innerHTML = '<span class="status-badge ok">200 OK</span>'
+  document.getElementById('resp-timing').textContent = `${ms}ms`
+  document.getElementById('copy-btn').style.display = 'block'
+}
+
+function renderError(msg, ms, status) {
+  document.getElementById('response-body').innerHTML = `<div class="response-error">Error: ${msg}</div>`
+  document.getElementById('resp-status').innerHTML = `<span class="status-badge err">${status || 'ERR'}</span>`
+  document.getElementById('resp-timing').textContent = ms ? `${ms}ms` : ''
+  document.getElementById('copy-btn').style.display = 'none'
+}
+
+function addHistory(name, ok, ms) {
+  state.history.unshift({ name, ok, ms })
+  if (state.history.length > 10) state.history.pop()
+  renderHistory()
+}
+
+function renderHistory() {
+  const container = document.getElementById('history-list')
+  container.innerHTML = ''
+  if (!state.history.length) {
+    container.innerHTML = '<div style="padding:6px 14px;font-size:11px;color:var(--text3)">No requests yet</div>'
+    return
+  }
+  state.history.forEach((h) => {
+    const div = document.createElement('div')
+    div.className = 'history-item'
+    div.innerHTML = `
+      <div class="history-status ${h.ok ? 'ok' : 'err'}"></div>
+      <span class="history-name">${h.name}</span>
+      <span class="history-time">${h.ms}ms</span>`
+    container.appendChild(div)
+  })
+}
+
+function copyResponse() {
+  if (!state.lastResponse) return
+  navigator.clipboard.writeText(JSON.stringify(state.lastResponse.data, null, 2))
+  const btn = document.getElementById('copy-btn')
+  btn.textContent = 'Copied!'
+  setTimeout(() => { btn.textContent = 'Copy' }, 1500)
+}
+
+document.addEventListener('keydown', (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); execute() }
+})
+
+async function checkHealth() {
+  try {
+    const res = await fetch('/api/health')
+    const json = await res.json()
+    const dot = document.getElementById('status-dot')
+    const text = document.getElementById('status-text')
+    if (json.odoo === 'connected') {
+      dot.className = 'dot connected'
+      text.textContent = json.mock ? 'Mock Odoo' : 'Odoo Connected'
+      document.getElementById('footer-dot').className = 'footer-dot ok'
+      document.getElementById('footer-mode').textContent = json.mock ? 'Mock Odoo' : 'Live Odoo'
+    } else {
+      dot.className = 'dot mock'
+      text.textContent = 'Mock Odoo'
+      document.getElementById('footer-dot').className = 'footer-dot warn'
+      document.getElementById('footer-mode').textContent = 'Mock Odoo'
+    }
+  } catch {
+    document.getElementById('status-dot').className = 'dot error'
+    document.getElementById('status-text').textContent = 'Server error'
+  }
+}
+
+async function loadTools() {
+  const res = await fetch('/api/tools')
+  state.tools = await res.json()
+  renderToolList()
+  renderHistory()
+  if (state.tools.length) selectTool(state.tools[0])
+}
+
+checkHealth()
+setInterval(checkHealth, 30000)
+loadTools()
+</script>
+</body>
+</html>
