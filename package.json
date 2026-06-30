@@ -4,6 +4,7 @@
   "type": "module",
   "description": "TypeScript MCP server for Odoo JSON-2 API with HMAC webhooks and Redis caching",
   "scripts": {
+    "start": "node dist/index.js",
     "dev": "MOCK_ODOO=true tsx src/index.ts",
     "build": "tsc && cp -r src/inspector/public dist/inspector/public",
     "test": "vitest run",
